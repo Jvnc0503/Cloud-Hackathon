@@ -3,7 +3,7 @@ provider:
   name: aws
   runtime: python3.14
   memorySize: 1024
-  timeout: 30
+  timeout: 29
   # Rol proporcionado por AWS Academy
   iam:
     role: arn:aws:iam::${aws:accountId}:role/LabRole
@@ -20,7 +20,7 @@ package:
     - '!./**'
 
 functions:
-  get_upload_url:
+  GetUploadURL:
     handler: get_upload_url.lambda_handler
     package:
       patterns:
@@ -31,27 +31,18 @@ functions:
           method: post
           cors: true # Configura CORS en API Gateway
   
-  convert_manuscript:
+  ConvertManuscript:
     handler: convert_manuscript.lambda_handler
     package:
       patterns:
         - convert_manuscript.py
         - markitdown-deps/** # Incluimos la carpeta de dependencias de Markitdown para la conversión
-    events:
-      - s3:
-          bucket: centinela-raw-manuscripts-${sls:stage}
-          event: s3:ObjectCreated:*
-          existing: true # Indica que el bucket ya existe (creado por CloudFormation)
  
-  classify_manuscript:
+  ClassifyManuscript:
     handler: classify_manuscript.lambda_handler
     package:
       patterns:
         - classify_manuscript.py
-    events:
-      - s3:
-          bucket: centinela-md-manuscripts-${sls:stage}
-          event: s3:ObjectCreated:*
  
 resources:
   Resources:
@@ -71,12 +62,40 @@ resources:
               AllowedHeaders:
                 - "*"
               MaxAge: 3000
+        # Notificación para disparar la función de conversión al subir un nuevo manuscrito
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: !GetAtt ConvertManuscriptLambdaFunction.Arn
+
+    # Permiso para que S3 pueda invocar la función de conversión
+    ConvertManuscriptPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt ConvertManuscriptLambdaFunction.Arn
+        Principal: s3.amazonaws.com
+        SourceArn: !GetAtt CentinelaRawBucket.Arn
     
     # 2. Bucket S3 para archivos procesados (MD)
     CentinelaProcessedBucket:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: centinela-processed-manuscripts-${sls:stage}
+        # Configuración de CORS INDISPENSABLE para que Amplify pueda acceder a los archivos procesados
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: !GetAtt ClassifyManuscriptLambdaFunction.Arn
+
+    # Permiso para que S3 pueda invocar la función de clasificación
+    ClassifyManuscriptPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt ClassifyManuscriptLambdaFunction.Arn
+        Principal: s3.amazonaws.com
+        SourceArn: !GetAtt CentinelaProcessedBucket.Arn
  
     # 3. Tabla DynamoDB
     ManuscriptsTable:
