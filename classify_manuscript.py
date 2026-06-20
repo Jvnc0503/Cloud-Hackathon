@@ -41,18 +41,32 @@ TOPIC_KEYWORDS = {
     ],
     "ingenieria": [
         # Español
-        "algoritmo", "sistema", "arquitectura", "circuito", "estructura",
-        "ingeniería", "diseño estructural", "software", "hardware",
-        "procesamiento", "simulación", "control", "optimización",
-        "material", "mecánico", "eléctrico", "civil", "infraestructura",
-        "autómata", "ciencias de la computación", "estructura de datos",
+        "sistema", "arquitectura", "circuito", "estructura", "mecatrónica",
+        "ingeniería", "diseño estructural", "procesamiento", "construcción",
+        "simulación", "control", "optimización", "material", "termodinámica",
+        "mecánico", "eléctrico", "civil", "infraestructura", "industrial",
         # Inglés
-        "algorithm", "system", "architecture", "circuit", "structure",
-        "engineering", "structural design", "hardware", "processing",
-        "simulation", "optimization", "mechanical", "electrical",
-        "infrastructure", "automaton", "computer science", "data structure",
-        "tree data", "computational"
+        "system", "architecture", "circuit", "structure", "mechatronics",
+        "engineering", "structural design", "processing", "construction",
+        "simulation", "optimization", "mechanical", "electrical", "thermodynamics",
+        "infrastructure", "industrial", "civil engineering"
     ],
+    "computacion": [
+        # Español
+        "algoritmo", "software", "hardware", "ciencias de la computación", 
+        "estructura de datos", "autómata", "inteligencia artificial", 
+        "aprendizaje automático", "redes neuronales", "base de datos", 
+        "ciberseguridad", "programación", "computación en la nube", 
+        "visión por computadora", "segmentación", "ocr", "procesamiento de imágenes", 
+        "computacional", "interfaz",
+        # Inglés
+        "algorithm", "software", "hardware", "computer science", 
+        "data structure", "automaton", "artificial intelligence", 
+        "machine learning", "neural network", "database", 
+        "cybersecurity", "programming", "cloud computing", "computer vision",
+        "segmentation", "ocr", "bounding box", "keypoint", "tree data", 
+        "computational", "deep learning", "interface"
+    ]
 }
  
 DEFAULT_TOPIC = "general"
