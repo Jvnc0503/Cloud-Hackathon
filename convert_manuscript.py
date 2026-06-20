@@ -1,6 +1,12 @@
 import os
+import sys
 import boto3
 from urllib.parse import unquote_plus
+
+cur_dir = os.path.dirname(os.path.abspath(__file__))
+markitdown_path = os.path.join(cur_dir, 'markitdown-deps') 
+sys.path.insert(0, markitdown_path) # Aseguramos que el módulo MarkItDown esté en el path para importarlo sin problemas
+
 from markitdown import MarkItDown
 
 # Inicializamos el cliente de S3

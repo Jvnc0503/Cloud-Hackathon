@@ -14,17 +14,40 @@ provider:
     PROCESSED_BUCKET_NAME: !Ref CentinelaProcessedBucket
     TABLE_NAME: Manuscripts
  
+package:
+  individually: true # Empaqueta cada función Lambda por separado para optimizar despliegue
+  patterns:
+    - '!./**'
+
 functions:
   get_upload_url:
     handler: get_upload_url.lambda_handler
+    package:
+      patterns:
+        - get_upload_url.py # Solo empaquetamos el código necesario para esta función
     events:
       - http:
           path: /api/v1/manuscripts/upload-url
           method: post
           cors: true # Configura CORS en API Gateway
+  
+  convert_manuscript:
+    handler: convert_manuscript.lambda_handler
+    package:
+      patterns:
+        - convert_manuscript.py
+        - markitdown-deps/** # Incluimos la carpeta de dependencias de Markitdown para la conversión
+    events:
+      - s3:
+          bucket: centinela-raw-manuscripts-${sls:stage}
+          event: s3:ObjectCreated:*
+          existing: true # Indica que el bucket ya existe (creado por CloudFormation)
  
   classify_manuscript:
     handler: classify_manuscript.lambda_handler
+    package:
+      patterns:
+        - classify_manuscript.py
     events:
       - s3:
           bucket: centinela-md-manuscripts-${sls:stage}
