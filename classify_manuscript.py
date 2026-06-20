@@ -14,6 +14,10 @@ TABLE_NAME = os.environ.get("TABLE_NAME", "Manuscripts")
 # Diccionario Bilingüe de keywords por tema.
 # Soporta documentos en español e inglés.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Diccionario Bilingüe de keywords por tema.
+# Depurado para evitar colisiones (falsos positivos) entre ingenierías.
+# ---------------------------------------------------------------------------
 TOPIC_KEYWORDS = {
     "medicina": [
         # Español
@@ -40,14 +44,12 @@ TOPIC_KEYWORDS = {
         "molecular biology"
     ],
     "ingenieria": [
-        # Español
-        "sistema", "arquitectura", "circuito", "estructura", "mecatrónica",
-        "ingeniería", "diseño estructural", "procesamiento", "construcción",
+        # Español (Términos estrictamente físicos/industriales)
+        "circuito", "mecatrónica", "ingeniería", "diseño estructural",
         "simulación", "control", "optimización", "material", "termodinámica",
         "mecánico", "eléctrico", "civil", "infraestructura", "industrial",
         # Inglés
-        "system", "architecture", "circuit", "structure", "mechatronics",
-        "engineering", "structural design", "processing", "construction",
+        "circuit", "mechatronics", "engineering", "structural design",
         "simulation", "optimization", "mechanical", "electrical", "thermodynamics",
         "infrastructure", "industrial", "civil engineering"
     ],
@@ -57,15 +59,15 @@ TOPIC_KEYWORDS = {
         "estructura de datos", "autómata", "inteligencia artificial", 
         "aprendizaje automático", "redes neuronales", "base de datos", 
         "ciberseguridad", "programación", "computación en la nube", 
-        "visión por computadora", "segmentación", "ocr", "procesamiento de imágenes", 
-        "computacional", "interfaz",
+        "visión por computadora", "segmentación de instancias", "ocr", 
+        "procesamiento de imágenes", "estimación de pose",
         # Inglés
         "algorithm", "software", "hardware", "computer science", 
-        "data structure", "automaton", "artificial intelligence", 
+        "data structure", "automaton", "automata", "artificial intelligence", 
         "machine learning", "neural network", "database", 
         "cybersecurity", "programming", "cloud computing", "computer vision",
-        "segmentation", "ocr", "bounding box", "keypoint", "tree data", 
-        "computational", "deep learning", "interface"
+        "instance segmentation", "ocr", "bounding box", "keypoint", "pose estimation", 
+        "deep learning", "trie", "suffix tree", "pointer", "string matching"
     ]
 }
  
