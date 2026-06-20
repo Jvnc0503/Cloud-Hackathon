@@ -58,19 +58,19 @@ resources:
     #    hacia !Ref CentinelaMdBucket pero el recurso no existia
     #    todavia -> esto rompia el deploy (Unresolved resource).
     # ---------------------------------------------------------------
-    CentinelaMdBucket:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: centinela-md-manuscripts-${sls:stage}
+    #CentinelaMdBucket:
+    #  Type: AWS::S3::Bucket
+    #  Properties:
+    #    BucketName: centinela-md-manuscripts-${sls:stage}
  
     # ---------------------------------------------------------------
     # 3. AGREGADO: mismo problema que el de arriba, faltaba el
     #    recurso para CentinelaProcessedBucket.
     # ---------------------------------------------------------------
-    CentinelaProcessedBucket:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: centinela-processed-manuscripts-${sls:stage}
+    #CentinelaProcessedBucket:
+    #  Type: AWS::S3::Bucket
+    #  Properties:
+    #    BucketName: centinela-processed-manuscripts-${sls:stage}
  
     # 4. Tabla DynamoDB de Ejemplo (Para ir preparando la estructura)
     ManuscriptsTable:
