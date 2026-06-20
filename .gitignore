@@ -222,3 +222,6 @@ markitdown-deps/
 
 # Serverless
 .serverless/
+
+# Test files
+*.pdf
