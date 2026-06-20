@@ -11,27 +11,47 @@ PROCESSED_BUCKET = os.environ.get("PROCESSED_BUCKET_NAME", "centinela-processed-
 TABLE_NAME = os.environ.get("TABLE_NAME", "Manuscripts")
  
 # ---------------------------------------------------------------------------
-# Diccionario de keywords por tema.
-# Se puede ampliar sin tocar el resto de la lógica.
+# Diccionario Bilingüe de keywords por tema.
+# Soporta documentos en español e inglés.
 # ---------------------------------------------------------------------------
 TOPIC_KEYWORDS = {
     "medicina": [
+        # Español
         "paciente", "clínico", "clínica", "tratamiento", "diagnóstico",
         "fármaco", "medicamento", "ensayo clínico", "vacuna", "terapia",
         "síntoma", "patología", "salud pública", "epidemiología",
         "hospital", "cirugía", "enfermedad", "dosis", "biomédico",
+        # Inglés
+        "patient", "clinical", "treatment", "diagnosis", "drug",
+        "medicine", "vaccine", "therapy", "symptom", "pathology",
+        "public health", "epidemiology", "surgery", "disease", "dose",
+        "biomedical"
     ],
     "biotecnologia": [
-        "adn", "dna", "rna", "gen", "genoma", "genómica", "crispr",
+        # Español
+        "adn", "rna", "gen", "genoma", "genómica", "crispr",
         "celular", "proteína", "bioreactor", "cultivo celular",
         "biotecnología", "secuenciación", "transgénico", "enzima",
         "microorganismo", "plásmido", "vector viral", "biología molecular",
+        # Inglés
+        "dna", "gene", "genome", "genomics", "cellular", "protein",
+        "cell culture", "biotechnology", "sequencing", "transgenic",
+        "enzyme", "microorganism", "plasmid", "viral vector", 
+        "molecular biology"
     ],
     "ingenieria": [
+        # Español
         "algoritmo", "sistema", "arquitectura", "circuito", "estructura",
         "ingeniería", "diseño estructural", "software", "hardware",
         "procesamiento", "simulación", "control", "optimización",
         "material", "mecánico", "eléctrico", "civil", "infraestructura",
+        "autómata", "ciencias de la computación", "estructura de datos",
+        # Inglés
+        "algorithm", "system", "architecture", "circuit", "structure",
+        "engineering", "structural design", "hardware", "processing",
+        "simulation", "optimization", "mechanical", "electrical",
+        "infrastructure", "automaton", "computer science", "data structure",
+        "tree data", "computational"
     ],
 }
  
