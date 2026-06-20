@@ -10,9 +10,9 @@ provider:
   environment:
     # Inyectamos el nombre del bucket en las variables de entorno de Lambda
     RAW_BUCKET_NAME: !Ref CentinelaRawBucket
-    MD_BUCKET_NAME: !Ref CentinelaMdBucket
+    MD_BUCKET_NAME: centinela-md-manuscripts-${sls:stage}
     PROCESSED_BUCKET_NAME: !Ref CentinelaProcessedBucket
-    TABLE_NAME: Manuscripts                              # <-- AGREGADO (clasificador la necesita)
+    TABLE_NAME: Manuscripts
  
 functions:
   get_upload_url:
@@ -27,7 +27,7 @@ functions:
     handler: classify_manuscript.lambda_handler
     events:
       - s3:
-          bucket: !Ref CentinelaMdBucket
+          bucket: centinela-md-manuscripts-${sls:stage}
           event: s3:ObjectCreated:*
  
 resources:
@@ -48,27 +48,14 @@ resources:
               AllowedHeaders:
                 - "*"
               MaxAge: 3000
+    
+    # 2. Bucket S3 para archivos procesados (MD)
+    CentinelaProcessedBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: centinela-processed-manuscripts-${sls:stage}
  
-    # ---------------------------------------------------------------
-    # 2. AGREGADO: faltaba este recurso. provider.environment ya
-    #    hacia !Ref CentinelaMdBucket pero el recurso no existia
-    #    todavia -> esto rompia el deploy (Unresolved resource).
-    # ---------------------------------------------------------------
-    #CentinelaMdBucket:
-    #  Type: AWS::S3::Bucket
-    #  Properties:
-    #    BucketName: centinela-md-manuscripts-${sls:stage}
- 
-    # ---------------------------------------------------------------
-    # 3. AGREGADO: mismo problema que el de arriba, faltaba el
-    #    recurso para CentinelaProcessedBucket.
-    # ---------------------------------------------------------------
-    #CentinelaProcessedBucket:
-    #  Type: AWS::S3::Bucket
-    #  Properties:
-    #    BucketName: centinela-processed-manuscripts-${sls:stage}
- 
-    # 4. Tabla DynamoDB de Ejemplo (Para ir preparando la estructura)
+    # 3. Tabla DynamoDB
     ManuscriptsTable:
       Type: AWS::DynamoDB::Table
       Properties:
