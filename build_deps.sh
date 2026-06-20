@@ -15,7 +15,6 @@ rm -rf ./$DEPS_DIR
 # Lee las dependencias desde tu archivo requirements.txt
 echo -e "\n📦 2. Instalando dependencias (Amazon Linux - Python 3.12)..."
 pip install -r requirements.txt -t ./$DEPS_DIR \
-    --platform manylinux2014_x86_64 \
     --python-version 3.14 \
     --only-binary=:all:
 
