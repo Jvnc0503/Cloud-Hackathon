@@ -2,12 +2,12 @@ service: centinela-backend
 
 provider:
   name: aws
-  runtime: python3.12 #
-  memorySize: 1024 #
-  timeout: 30 #
+  runtime: python3.14
+  memorySize: 1024
+  timeout: 30
   # Rol proporcionado por AWS Academy
   iam:
-    role: arn:aws:iam::606646193182:role/LabRole #
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
   environment:
     # Inyectamos el nombre del bucket en las variables de entorno de Lambda
     RAW_BUCKET_NAME: !Ref CentinelaRawBucket
