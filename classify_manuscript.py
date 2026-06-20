@@ -110,7 +110,10 @@ def detectar_tema(texto_md: str) -> dict:
 def actualizar_dynamo(manuscript_id: str, topic: str):
     table = dynamodb.Table(TABLE_NAME)
     table.update_item(
-        Key={"ManuscriptID": manuscript_id},
+        Key={
+            "PK": f"MANUSCRIPT#{manuscript_id}", 
+            "SK": "METADATA"
+        },
         UpdateExpression="SET Topic = :t",
         ExpressionAttributeValues={":t": topic},
     )

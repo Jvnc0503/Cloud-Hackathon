@@ -1,4 +1,7 @@
 service: centinela-backend
+
+useDotenv: true
+
 provider:
   name: aws
   runtime: python3.14
@@ -10,7 +13,8 @@ provider:
     RAW_BUCKET_NAME: centinela-raw-manuscripts-${sls:stage}
     MD_BUCKET_NAME: centinela-md-manuscripts-${sls:stage}
     PROCESSED_BUCKET_NAME: centinela-processed-manuscripts-${sls:stage}
-    TABLE_NAME: Manuscripts
+    TABLE_NAME: centinela-integridad
+    QUEUE_URL: !Ref ColaDeLotes
 
 package:
   individually: true 
@@ -31,6 +35,7 @@ functions:
   
   ConvertManuscript:
     handler: convert_manuscript.lambda_handler
+    timeout: 60
     package:
       patterns:
         - convert_manuscript.py
@@ -41,7 +46,30 @@ functions:
     package:
       patterns:
         - classify_manuscript.py
- 
+
+  ExtractManuscript:
+    handler: extractor_lambda.handler
+    package:
+      patterns:
+        - extractor_lambda.py
+
+  WorkerLLM:
+    handler: worker_llm_lambda.handler
+    timeout: 60
+    package:
+      patterns:
+        - worker_llm_lambda.py
+    environment:
+      GROQ_API_KEY: ${env:GROQ_API_KEY}
+      GROQ_MODEL: ${env:GROQ_MODEL}
+      CONTACT_EMAIL: ${env:CONTACT_EMAIL}
+    events:
+      - sqs:
+          arn: !GetAtt ColaDeLotes.Arn
+          batchSize: 25
+          maximumBatchingWindow: 5
+          functionResponseType: ReportBatchItemFailures
+
 resources:
   Resources:
     # ==========================================
@@ -93,24 +121,62 @@ resources:
         SourceArn: arn:aws:s3:::centinela-md-manuscripts-${sls:stage}
     
     # ==========================================
-    # 3. BUCKET PROCESSED (Salida Final)
+    # 3. BUCKET PROCESSED (Salida) -> Llama a Extractor
     # ==========================================
     CentinelaProcessedBucket:
       Type: AWS::S3::Bucket
+      DependsOn: ExtractManuscriptPermission
       Properties:
         BucketName: centinela-processed-manuscripts-${sls:stage}
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: !GetAtt ExtractManuscriptLambdaFunction.Arn
+
+    ExtractManuscriptPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt ExtractManuscriptLambdaFunction.Arn
+        Principal: s3.amazonaws.com
+        SourceArn: arn:aws:s3:::centinela-processed-manuscripts-${sls:stage}
  
     # ==========================================
-    # 4. TABLA DYNAMODB
+    # 4. TABLA DYNAMODB (Diseño Single-Table)
     # ==========================================
-    ManuscriptsTable:
+    TablaCentinela:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: Manuscripts
+        TableName: centinela-integridad
+        BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
-          - AttributeName: ManuscriptID
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
             AttributeType: S
         KeySchema:
-          - AttributeName: ManuscriptID
+          - AttributeName: PK
             KeyType: HASH
-        BillingMode: PAY_PER_REQUEST
+          - AttributeName: SK
+            KeyType: RANGE
+
+    # ==========================================
+    # 5. COLAS SQS (Mensajería y DLQ)
+    # ==========================================
+    ColaDeLotesDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: cola-de-lotes-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    ColaDeLotes:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: cola-de-lotes
+        VisibilityTimeout: 360
+        ReceiveMessageWaitTimeSeconds: 20
+        SqsManagedSseEnabled: true
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaDeLotesDLQ.Arn
+          maxReceiveCount: 3
