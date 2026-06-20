@@ -219,3 +219,6 @@ __marimo__/
 
 # Markitdown dependencies
 markitdown-deps/
+
+# Serverless
+.serverless/
