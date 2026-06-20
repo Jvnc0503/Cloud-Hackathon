@@ -11,6 +11,8 @@ provider:
   environment:
     # Inyectamos el nombre del bucket en las variables de entorno de Lambda
     RAW_BUCKET_NAME: !Ref CentinelaRawBucket
+    MD_BUCKET_NAME: !Ref CentinelaMdBucket
+    PROCESSED_BUCKET_NAME: !Ref CentinelaProcessedBucket
 
 functions:
   get_upload_url:
