@@ -23,12 +23,8 @@ functions:
           method: post
           cors: true # Configura CORS en API Gateway
  
-  # ---------------------------------------------------------------
-  # NUEVA: Lambda Clasificador por Tema
-  # Se dispara cuando el Converter deja un .md en el bucket MD.
-  # ---------------------------------------------------------------
-  clasificador:
-    handler: lambda_function.lambda_handler
+  classify_manuscript:
+    handler: classify_manuscript.lambda_handler
     events:
       - s3:
           bucket: !Ref CentinelaMdBucket
