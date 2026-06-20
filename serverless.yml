@@ -1,0 +1,54 @@
+service: centinela-backend
+
+provider:
+  name: aws
+  runtime: python3.12 #
+  memorySize: 1024 #
+  timeout: 30 #
+  # Rol proporcionado por AWS Academy
+  iam:
+    role: arn:aws:iam::606646193182:role/LabRole #
+  environment:
+    # Inyectamos el nombre del bucket en las variables de entorno de Lambda
+    RAW_BUCKET_NAME: !Ref CentinelaRawBucket
+
+functions:
+  get_upload_url:
+    handler: get_upload_url.lambda_handler
+    events:
+      - http:
+          path: /api/v1/manuscripts/upload-url
+          method: post
+          cors: true # Configura CORS en API Gateway
+
+resources:
+  Resources:
+    # 1. Bucket S3 para archivos originales (RAW)
+    CentinelaRawBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: centinela-raw-manuscripts-${sls:stage}
+        # Configuración de CORS INDISPENSABLE para Presigned URLs
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - "*" # En producción se cambia por la URL de Amplify
+              AllowedMethods:
+                - PUT
+                - GET
+              AllowedHeaders:
+                - "*"
+              MaxAge: 3000
+
+    # 2. Tabla DynamoDB de Ejemplo (Para ir preparando la estructura)
+    ManuscriptsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Manuscripts
+        AttributeDefinitions:
+          - AttributeName: ManuscriptID
+            AttributeType: S
+        KeySchema:
+          - AttributeName: ManuscriptID
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
