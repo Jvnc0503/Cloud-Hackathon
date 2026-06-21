@@ -1,12 +1,3 @@
-"""
-Lambda (Worker LLM) - Centinela de Integridad Cientifica
-Variables de entorno (todas requeridas; salen del .env en VM/Docker o de la
-config de la funcion en Lambda):
-  TABLE_NAME     -> tabla DynamoDB
-  GROQ_API_KEY   -> tu API key de Groq
-  GROQ_MODEL     -> modelo de Groq, p.ej. 'openai/gpt-oss-120b'
-  CONTACT_EMAIL  -> tu correo (Crossref pide uno para el "polite pool")
-"""
 import os
 import json
 import time
@@ -18,16 +9,12 @@ from decimal import Decimal
 import boto3
 from botocore.exceptions import ClientError
 
-# Carga el archivo .env si existe (VM / Docker / local).
-# En Lambda no hay .env: este bloque se ignora y las variables vienen
-# de la configuracion de la funcion. Asi el mismo codigo sirve en ambos lados.
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
-# Todo se lee del entorno, sin valores por defecto: si falta alguna, falla claro.
 TABLE_NAME = os.environ["TABLE_NAME"]
 GROQ_MODEL = os.environ["GROQ_MODEL"]
 CONTACT_EMAIL = os.environ["CONTACT_EMAIL"]
@@ -37,7 +24,6 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 tabla = boto3.resource("dynamodb").Table(TABLE_NAME)
 
-# --- Prompts especializados por disciplina (la pieza "elige prompt segun tema") ---
 PROMPTS_POR_TEMA = {
     "Biologia": "Eres un revisor experto en biologia y ciencias de la vida.",
     "Matematicas": "Eres un revisor experto en matematicas y ciencias formales.",
@@ -57,15 +43,19 @@ INSTRUCCION = (
 
 
 def handler(event, context):
-    """Punto de entrada. Devuelve las referencias que fallaron para que SQS
-    reintente SOLO esas (fallo parcial de lote)."""
     fallidas = []
+    total_mensajes = len(event["Records"])
+    
+    print(f"[INIT] Procesando lote de {total_mensajes} mensajes SQS.")
+    
     for record in event["Records"]:
         try:
             _procesar(json.loads(record["body"]))
         except Exception as e:
-            print(f"ERROR en mensaje {record['messageId']}: {e}")
+            print(f"[ERROR] Fallo en mensaje {record['messageId']}: {e}")
             fallidas.append({"itemIdentifier": record["messageId"]})
+            
+    print(f"[END] Lote finalizado. Mensajes fallidos devueltos a SQS: {len(fallidas)}")
     return {"batchItemFailures": fallidas}
 
 
@@ -73,27 +63,33 @@ def _procesar(msg):
     manuscript_id = msg["manuscriptId"]
     ref_id = msg["refId"]
     tema = msg.get("tema", "General")
+    doi = msg.get("doi")
 
-    retraccion = _consultar_crossref(msg.get("doi"))
+    print(f"[INFO] Evaluando MS: {manuscript_id} | REF: {ref_id} | DOI: {doi}")
 
+    retraccion = _consultar_crossref(doi)
     veredicto = None
+
     if retraccion.get("retractada"):
         estado = "RETRACTADA"
+        print(f"[ALERT] DOI {doi} retractado. Iniciando validacion semantica (Groq).")
         veredicto = _juzgar_con_groq(tema, msg.get("citaCruda", ""), msg.get("contexto", ""))
+        print(f"[LLM] Veredicto: {veredicto.get('veredicto')} | Confianza: {veredicto.get('confianza')}")
+        
     elif not retraccion.get("verificada"):
-        estado = "NO_VERIFICADA"   # el DOI no aparece en Crossref
+        estado = "NO_VERIFICADA"
+        print(f"[WARN] DOI {doi} no registrado en Crossref.")
     else:
-        estado = "OK"              # existe y no esta retractada
+        estado = "OK"
+        print(f"[OK] DOI {doi} verificado sin retractaciones.")
 
-    # Solo se cuenta como procesada si era la PRIMERA vez (idempotencia).
-    # Si el mensaje es un duplicado, _guardar_resultado devuelve False y no se recuenta.
     primera_vez = _guardar_resultado(manuscript_id, ref_id, estado, retraccion, veredicto)
+    
     if primera_vez:
         _sumar_procesada(manuscript_id, bool(retraccion.get("retractada")))
 
 
 def _consultar_crossref(doi):
-    """Devuelve si el DOI esta retractado segun Crossref (datos de Retraction Watch)."""
     if not doi:
         return {"verificada": False}
 
@@ -108,10 +104,9 @@ def _consultar_crossref(doi):
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         if e.code == 404:
-            return {"verificada": False}     # DOI desconocido para Crossref
-        cuerpo = e.read().decode("utf-8", "ignore")[:300]
-        print(f"[Crossref] HTTP {e.code} para DOI {doi}: {cuerpo}")
-        raise                                # 5xx / 429 -> que SQS reintente
+            return {"verificada": False}     
+        print(f"[ERROR] Crossref HTTP {e.code} para DOI {doi}.")
+        raise                                
 
     actualizaciones = data.get("message", {}).get("updated-by", []) or []
     retracciones = [u for u in actualizaciones if u.get("type") == "retraction"]
@@ -124,7 +119,6 @@ def _consultar_crossref(doi):
 
 
 def _juzgar_con_groq(tema, cita, contexto):
-    """Le pide a Groq (via HTTP, sin SDK) que clasifique como el autor usa una cita retractada."""
     sistema = PROMPTS_POR_TEMA.get(tema, PROMPT_DEFECTO) + INSTRUCCION
     usuario = (f"Entrada bibliografica:\n{cita}\n\n"
                f"Contexto donde aparece la cita:\n{contexto}")
@@ -142,33 +136,26 @@ def _juzgar_con_groq(tema, cita, contexto):
         headers={
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json",
-            # Sin esto, urllib manda "Python-urllib/..." y Cloudflare lo bloquea (error 1010).
             "User-Agent": "CentinelaIntegridad/1.0",
         },
     )
 
-    # Reintentos ante 429 (limite de uso) con backoff: 1s, 2s, 4s.
-    # Si tras los intentos sigue fallando, se propaga y SQS reintenta el mensaje.
     for intento in range(3):
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                # parse_float=Decimal: convierte numeros como "confianza": 0.9 a
-                # Decimal, porque DynamoDB no acepta float.
                 contenido = data["choices"][0]["message"]["content"]
                 return json.loads(contenido, parse_float=Decimal)
         except urllib.error.HTTPError as e:
             if e.code == 429 and intento < 2:
+                print(f"[WARN] Limite Groq alcanzado (429). Reintento en {2 ** intento}s.")
                 time.sleep(2 ** intento)
                 continue
-            cuerpo = e.read().decode("utf-8", "ignore")[:300]
-            print(f"[Groq] HTTP {e.code}: {cuerpo}")
+            print(f"[ERROR] Groq HTTP {e.code}.")
             raise
 
 
 def _guardar_resultado(manuscript_id, ref_id, estado, retraccion, veredicto):
-    """Escribe el resultado SOLO si la referencia seguia PENDIENTE.
-    Devuelve True si fue la primera vez (para contarla), False si era un duplicado."""
     expr = "SET #estado = :e, estaRetractada = :r, verificada = :v"
     vals = {
         ":e": estado,
@@ -183,37 +170,36 @@ def _guardar_resultado(manuscript_id, ref_id, estado, retraccion, veredicto):
         tabla.update_item(
             Key={"PK": f"MANUSCRIPT#{manuscript_id}", "SK": f"REF#{ref_id}"},
             UpdateExpression=expr,
-            ConditionExpression="#estado = :pendiente",   # solo si aun no fue procesada
+            ConditionExpression="#estado = :pendiente",   
             ExpressionAttributeNames={"#estado": "estado"},
             ExpressionAttributeValues=vals,
         )
         return True
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
-            print(f"[idempotencia] REF#{ref_id} ya estaba procesada; no se recuenta")
+            print(f"[IDEMPOTENCIA] REF#{ref_id} previamente procesada. Omitiendo reconteo.")
             return False
         raise
 
 
 def _sumar_procesada(manuscript_id, retractada):
-    """Suma 1 al contador (y a las retractadas si aplica) de forma atomica.
-    Si esta referencia es la ultima (refsProcesadas == totalRefs), cierra el manuscrito."""
     resp = tabla.update_item(
         Key={"PK": f"MANUSCRIPT#{manuscript_id}", "SK": "METADATA"},
         UpdateExpression="ADD refsProcesadas :uno, refsRetractadas :r",
         ExpressionAttributeValues={":uno": 1, ":r": (1 if retractada else 0)},
-        ReturnValues="ALL_NEW",   # me devuelve el item ya actualizado
+        ReturnValues="ALL_NEW",   
     )
     item = resp["Attributes"]
     total = int(item.get("totalRefs", 0))
     procesadas = int(item.get("refsProcesadas", 0))
+    
+    print(f"[DB] Progreso MS {manuscript_id}: {procesadas}/{total} completadas.")
+    
     if total and procesadas >= total:
         _cerrar_manuscrito(manuscript_id, total, int(item.get("refsRetractadas", 0)))
 
 
 def _cerrar_manuscrito(manuscript_id, total, retractadas):
-    """Marca el manuscrito como COMPLETADO y calcula el Indice de Integridad
-    (porcentaje de referencias no retractadas)."""
     indice = int(round((1 - retractadas / total) * 100)) if total else 0
     tabla.update_item(
         Key={"PK": f"MANUSCRIPT#{manuscript_id}", "SK": "METADATA"},
@@ -221,5 +207,4 @@ def _cerrar_manuscrito(manuscript_id, total, retractadas):
         ExpressionAttributeNames={"#estado": "estado"},
         ExpressionAttributeValues={":c": "COMPLETADO", ":i": indice},
     )
-    print(f"[cierre] {manuscript_id} COMPLETADO. Indice de Integridad: {indice} "
-          f"({retractadas}/{total} retractadas)")
+    print(f"[CIERRE] MS {manuscript_id} finalizado. Indice Integridad: {indice}%. Retractadas: {retractadas}/{total}")
