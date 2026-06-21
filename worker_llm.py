@@ -42,7 +42,7 @@ INSTRUCCION = (
 )
 
 
-def handler(event, context):
+def lambda_handler(event, context):
     fallidas = []
     total_mensajes = len(event["Records"])
     

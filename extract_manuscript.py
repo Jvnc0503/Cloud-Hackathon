@@ -26,7 +26,7 @@ DOI_RE = re.compile(r"10\.\d{4,9}/[-._;()/:A-Za-z0-9]+", re.I)
 ENCABEZADO_REF = re.compile(r"^#{0,6}\s*(referenc|bibliograf)", re.I | re.M)
 
 
-def handler(event, context):
+def lambda_handler(event, context):
     for record in event.get("Records", []):
         bucket = record["s3"]["bucket"]["name"]
         key = urllib.parse.unquote_plus(record["s3"]["object"]["key"])

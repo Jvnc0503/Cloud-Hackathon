@@ -48,17 +48,17 @@ functions:
         - classify_manuscript.py
 
   ExtractManuscript:
-    handler: extractor_lambda.handler
+    handler: extract_manuscript.lambda_handler
     package:
       patterns:
-        - extractor_lambda.py
+        - extract_manuscript.py
 
   WorkerLLM:
-    handler: worker_llm_lambda.handler
+    handler: worker_llm.lambda_handler
     timeout: 60
     package:
       patterns:
-        - worker_llm_lambda.py
+        - worker_llm.py
     environment:
       GROQ_API_KEY: ${env:GROQ_API_KEY}
       GROQ_MODEL: ${env:GROQ_MODEL}
@@ -70,11 +70,30 @@ functions:
           maximumBatchingWindow: 5
           functionResponseType: ReportBatchItemFailures
 
+  GetManuscriptStatus:
+    handler: get_status.lambda_handler
+    package:
+      patterns:
+        - get_status.py
+    events:
+      - http:
+          path: /api/v1/manuscripts/{id}
+          method: get
+          cors: true
+
+  GetManuscriptResults:
+    handler: get_results.lambda_handler
+    package:
+      patterns:
+        - get_results.py
+    events:
+      - http:
+          path: /api/v1/manuscripts/{id}/results
+          method: get
+          cors: true
+
 resources:
   Resources:
-    # ==========================================
-    # 1. BUCKET RAW (Entrada) -> Llama a Convert
-    # ==========================================
     CentinelaRawBucket:
       Type: AWS::S3::Bucket
       DependsOn: ConvertManuscriptPermission
@@ -99,9 +118,6 @@ resources:
         Principal: s3.amazonaws.com
         SourceArn: arn:aws:s3:::centinela-raw-manuscripts-${sls:stage}
 
-    # ==========================================
-    # 2. BUCKET MD (Intermedio) -> Llama a Classify
-    # ==========================================
     CentinelaMdBucket:
       Type: AWS::S3::Bucket
       DependsOn: ClassifyManuscriptPermission
@@ -120,9 +136,6 @@ resources:
         Principal: s3.amazonaws.com
         SourceArn: arn:aws:s3:::centinela-md-manuscripts-${sls:stage}
     
-    # ==========================================
-    # 3. BUCKET PROCESSED (Salida) -> Llama a Extractor
-    # ==========================================
     CentinelaProcessedBucket:
       Type: AWS::S3::Bucket
       DependsOn: ExtractManuscriptPermission
@@ -141,9 +154,6 @@ resources:
         Principal: s3.amazonaws.com
         SourceArn: arn:aws:s3:::centinela-processed-manuscripts-${sls:stage}
  
-    # ==========================================
-    # 4. TABLA DYNAMODB (Diseño Single-Table)
-    # ==========================================
     TablaCentinela:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -160,9 +170,6 @@ resources:
           - AttributeName: SK
             KeyType: RANGE
 
-    # ==========================================
-    # 5. COLAS SQS (Mensajería y DLQ)
-    # ==========================================
     ColaDeLotesDLQ:
       Type: AWS::SQS::Queue
       Properties:
