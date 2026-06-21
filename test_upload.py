@@ -1,76 +1,52 @@
 import os
 import sys
 import requests
+import time
 
 # ---------------------------------------------------------
-# Configuración del entorno de pruebas
+# Configuración
 # ---------------------------------------------------------
-# Extraemos la URL desde las variables de entorno
-API_URL = os.environ.get("API_URL")
+BASE_URL = os.environ.get("BASE_URL")
 
-def test_pipeline_subida(file_path):
-    # 1. Validación de seguridad de la URL
-    if not API_URL:
-        print("❌ Error crítico: La variable de entorno 'API_URL' no está configurada.")
-        print("💡 Ejecuta el script de la siguiente manera:")
-        print(f"   API_URL='https://tu-api.amazonaws.com/...' python {sys.argv[0]} {file_path}\n")
+def test_pipeline_completo(file_path):
+    if not BASE_URL:
+        print("Error: La variable 'BASE_URL' no está configurada.")
         return
 
-    # 2. Validación de existencia del archivo
-    if not os.path.exists(file_path):
-        print(f"❌ Error crítico: No se encontró el archivo '{file_path}' en tu sistema.")
-        print("💡 Verifica la ruta y vuelve a intentarlo.\n")
-        return
+    print(f"🚀 Iniciando prueba completa: '{file_path}'")
 
-    print(f"🚀 Iniciando prueba automatizada para: '{file_path}'\n")
+    # 1. Obtener URL de subida
+    print("1. Solicitando URL de subida...")
+    resp = requests.post(f"{BASE_URL}/api/v1/manuscripts/upload-url", json={"fileName": os.path.basename(file_path)})
+    data = resp.json()
+    manuscript_id = data["manuscriptId"]
+    upload_url = data["uploadUrl"]
 
-    # 3. Obtener la URL pre-firmada desde API Gateway
-    print("1️⃣  Solicitando autorización al Backend (GetUploadURL)...")
-    payload = {"fileName": os.path.basename(file_path)}
+    # 2. Subir archivo a S3
+    print(f"2. Subiendo archivo a S3 (ID: {manuscript_id})...")
+    with open(file_path, "rb") as f:
+        requests.put(upload_url, data=f, headers={"Content-Type": "application/pdf"})
     
-    response = requests.post(API_URL, json=payload)
+    sleep_time = 30
+    print(f"   Subida exitosa. Esperando procesamiento ({sleep_time}s)...")
+    time.sleep(sleep_time)
 
-    if response.status_code != 200:
-        print(f"❌ Falló la comunicación con la API: {response.status_code}")
-        print(response.text)
-        return
+    # 3. Consultar Estado (GET /manuscripts/{id})
+    print("3. Consultando estado del manuscrito...")
+    status_resp = requests.get(f"{BASE_URL}/api/v1/manuscripts/{manuscript_id}")
+    print(f"   Estado: {status_resp.json().get('estado', 'Pendiente')}")
 
-    data = response.json()
-    upload_url = data.get("uploadUrl")
-    manuscript_id = data.get("manuscriptId")
+    # 4. Consultar Resultados (GET /manuscripts/{id}/results)
+    print("4. Consultando resultados...")
+    res_resp = requests.get(f"{BASE_URL}/api/v1/manuscripts/{manuscript_id}/results")
+    resultados = res_resp.json()
+    print(f"   Referencias procesadas: {len(resultados)}")
     
-    print(f"✅ Autorización concedida. ID asignado: {manuscript_id}\n")
-
-    # 4. Leer el archivo binario y subirlo directamente a S3
-    print("2️⃣  Subiendo el documento directamente a S3 RAW...")
-    
-    try:
-        with open(file_path, "rb") as file_data:
-            # S3 exige que el Content-Type coincida exactamente con el que firmó la Lambda
-            headers = {"Content-Type": "application/pdf"}
-            
-            s3_response = requests.put(upload_url, data=file_data, headers=headers)
-            
-            if s3_response.status_code == 200:
-                print("✅ ¡Subida a S3 exitosa!")
-                print(f"⏳ La cadena de eventos asíncrona de AWS ha comenzado para {manuscript_id}.")
-                print("   (Revisa los logs con: sls logs -f ConvertManuscript -t)")
-            else:
-                print(f"❌ S3 rechazó el archivo. Código HTTP: {s3_response.status_code}")
-                print(s3_response.text)
-                
-    except Exception as e:
-        print(f"❌ Ocurrió un error inesperado al subir a S3: {str(e)}")
+    print("\n✅ Prueba finalizada correctamente.")
 
 if __name__ == "__main__":
-    # Capturar y validar los argumentos de la terminal
-    # sys.argv[0] es el nombre del script (test_upload.py)
-    # sys.argv[1] será el primer argumento (la ruta del archivo)
-    
     if len(sys.argv) < 2:
-        print("❌ Error: Faltan argumentos.")
-        print(f"💡 Uso correcto: python {sys.argv[0]} <ruta_al_archivo.pdf>")
+        print("Uso: BASE_URL='...' python test_upload.py <archivo.pdf>")
         sys.exit(1)
         
-    archivo_a_subir = sys.argv[1]
-    test_pipeline_subida(archivo_a_subir)
+    test_pipeline_completo(sys.argv[1])
