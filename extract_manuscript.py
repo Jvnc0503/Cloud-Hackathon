@@ -300,14 +300,19 @@ def _fallback_dois(md):
 
 
 def _registrar_total(manuscript_id, tema, total):
+    estado = "COMPLETADO" if total == 0 else "PROCESANDO"
+    expr = "SET tema = :t, totalRefs = :n, refsProcesadas = :z, refsRetractadas = :z, #estado = :e"
+    vals = {":t": tema, ":n": total, ":z": 0, ":e": estado}
+
+    if total == 0:
+        expr += ", indiceIntegridad = :i"
+        vals[":i"] = 100
+
     tabla.update_item(
         Key={"PK": f"MANUSCRIPT#{manuscript_id}", "SK": "METADATA"},
-        UpdateExpression=(
-            "SET tema = :t, totalRefs = :n, refsProcesadas = :z, "
-            "refsRetractadas = :z, #estado = :e"
-        ),
+        UpdateExpression=expr,
         ExpressionAttributeNames={"#estado": "estado"},
-        ExpressionAttributeValues={":t": tema, ":n": total, ":z": 0, ":e": "PROCESANDO"},
+        ExpressionAttributeValues=vals,
     )
 
 
