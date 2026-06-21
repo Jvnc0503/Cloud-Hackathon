@@ -29,7 +29,11 @@ La comunicación se rige por HTTPS/REST y JSON. Los endpoints principales son:
 
 *(Para detalles de estructuras JSON, consultar [`API_CONTRACT.md`](API_CONTRACT.md))*.
 
-## 4. Manual de Despliegue
+## 4. Diaframa de Arquitectura de Solución
+
+![Diagrama de arquitectura](DiagramaArquitectura.drawio.png)
+
+## 5. Manual de Despliegue
 
 ### Requisitos Previos
 * Node.js (v18+)
