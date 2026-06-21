@@ -7,8 +7,6 @@ TABLE_NAME = os.environ.get("TABLE_NAME", "centinela-integridad")
 dynamodb = boto3.resource("dynamodb")
 tabla = dynamodb.Table(TABLE_NAME)
 
-# Mapeo del estado interno (español) al estado público del contrato de API.
-# El frontend espera: PENDING | PROCESSING | COMPLETED | ERROR.
 ESTADO_A_STATUS = {
     "PENDIENTE":  "PENDING",
     "PROCESANDO": "PROCESSING",
@@ -16,13 +14,11 @@ ESTADO_A_STATUS = {
     "ERROR":      "ERROR",
 }
 
-
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Decimal):
             return float(obj) if obj % 1 else int(obj)
         return super(DecimalEncoder, self).default(obj)
-
 
 def _cors_headers():
     return {
@@ -30,25 +26,26 @@ def _cors_headers():
         "Access-Control-Allow-Credentials": True,
     }
 
-
 def _to_contract(manuscript_id, item):
-    """Traduce el item METADATA de DynamoDB al contrato público (camelCase, inglés).
-
-    Forma esperada por el frontend (ver API_CONTRACT.md / openapi.yml):
-      { manuscriptId, fileName, status, progress:{totalBatches,processedBatches},
-        globalIntegrityIndex, topic }
-    """
     estado = item.get("estado", "PENDIENTE")
     status = ESTADO_A_STATUS.get(estado, "PROCESSING")
 
-    total = int(item.get("totalRefs", 0) or 0)
-    procesadas = int(item.get("refsProcesadas", 0) or 0)
+    # 1. Obtenemos los valores reales desde DynamoDB
+    total_refs = int(item.get("totalRefs", 0))
+    refs_procesadas = int(item.get("refsProcesadas", 0))
+    total_batches = int(item.get("totalBatches", 0))
 
-    # indiceIntegridad solo existe cuando el manuscrito está cerrado.
+    # 2. Calculamos los lotes procesados dividiendo las referencias entre 10
+    procesadas = refs_procesadas // 10
+
+    # 3. Aseguramos que la barra llegue al 100% (igualando al total de lotes) al finalizar
+    if refs_procesadas > 0 and refs_procesadas >= total_refs:
+        procesadas = total_batches
+        status = "COMPLETED"
+
     indice = item.get("indiceIntegridad")
     indice = int(indice) if indice is not None else None
 
-    # El tema lo escribe el Extractor ("tema"); el Clasificador deja "Topic".
     topic = item.get("tema") or item.get("Topic")
 
     return {
@@ -56,13 +53,12 @@ def _to_contract(manuscript_id, item):
         "fileName": item.get("fileName", ""),
         "status": status,
         "progress": {
-            "totalBatches": total,
+            "totalBatches": total_batches,
             "processedBatches": procesadas,
         },
         "globalIntegrityIndex": indice,
         "topic": topic,
     }
-
 
 def lambda_handler(event, context):
     manuscript_id = event["pathParameters"]["id"]
@@ -72,7 +68,6 @@ def lambda_handler(event, context):
             Key={"PK": f"MANUSCRIPT#{manuscript_id}", "SK": "METADATA"}
         )
         item = response.get("Item")
-        print(item)
 
         if not item:
             return {
