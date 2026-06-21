@@ -25,9 +25,10 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 tabla = boto3.resource("dynamodb").Table(TABLE_NAME)
 
 PROMPTS_POR_TEMA = {
-    "Biologia": "Eres un revisor experto en biologia y ciencias de la vida.",
-    "Matematicas": "Eres un revisor experto en matematicas y ciencias formales.",
-    "Medicina": "Eres un revisor experto en medicina y ciencias clinicas.",
+    "medicina": "Eres un revisor experto en medicina y ciencias clinicas.",
+    "biotecnologia": "Eres un revisor experto en biotecnologia y ciencias moleculares.",
+    "ingenieria": "Eres un revisor experto en ingenieria y ciencias aplicadas.",
+    "computacion": "Eres un revisor experto en computacion e informatica.",
 }
 PROMPT_DEFECTO = "Eres un revisor experto en integridad cientifica."
 
