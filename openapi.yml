@@ -1,0 +1,155 @@
+openapi: 3.0.3
+info:
+  title: Centinela Manuscript API
+  version: 1.0.0
+  description: API for generating upload URLs and retrieving manuscript processing status and results.
+servers:
+  - url: https://{domain}
+    variables:
+      domain:
+        default: api.example.com
+        description: API Gateway host for the deployed service
+paths:
+  /api/v1/manuscripts/upload-url:
+    post:
+      summary: Generate a presigned S3 upload URL
+      operationId: generateUploadUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fileName
+              properties:
+                fileName:
+                  type: string
+                  example: test2.pdf
+      responses:
+        '200':
+          description: Presigned URL generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/manuscripts/{id}:
+    get:
+      summary: Get manuscript status and metadata
+      operationId: getManuscriptStatus
+      parameters:
+        - $ref: '#/components/parameters/ManuscriptId'
+      responses:
+        '200':
+          description: Manuscript metadata found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManuscriptStatusResponse'
+        '404':
+          description: Manuscript not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/manuscripts/{id}/results:
+    get:
+      summary: Get manuscript processing results
+      operationId: getManuscriptResults
+      parameters:
+        - $ref: '#/components/parameters/ManuscriptId'
+      responses:
+        '200':
+          description: Results returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManuscriptResultsResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  parameters:
+    ManuscriptId:
+      name: id
+      in: path
+      required: true
+      description: Unique manuscript identifier
+      schema:
+        type: string
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: Manuscrito no encontrado
+
+    UploadUrlResponse:
+      type: object
+      required:
+        - message
+        - manuscriptId
+        - fileKey
+        - uploadUrl
+      properties:
+        message:
+          type: string
+          example: URL generada exitosamente
+        manuscriptId:
+          type: string
+          example: 8d0f2b7b-6cc7-4c06-8c9e-74e3ee2e0ae9
+        fileKey:
+          type: string
+          example: uploads/8d0f2b7b-6cc7-4c06-8c9e-74e3ee2e0ae9.pdf
+        uploadUrl:
+          type: string
+          format: uri
+          example: https://example-bucket.s3.amazonaws.com/uploads/8d0f2b7b-6cc7-4c06-8c9e-74e3ee2e0ae9.pdf?X-Amz-Signature=...
+
+    ManuscriptStatusResponse:
+      type: object
+      description: Manuscript metadata stored in DynamoDB. The structure may vary by pipeline stage.
+      additionalProperties: true
+      properties:
+        manuscriptId:
+          type: string
+          example: 8d0f2b7b-6cc7-4c06-8c9e-74e3ee2e0ae9
+
+    ManuscriptResultsResponse:
+      type: array
+      description: List of result references associated with the manuscript.
+      items:
+        type: object
+        additionalProperties: true
+        properties:
+          refId:
+            type: string
+            example: 123
