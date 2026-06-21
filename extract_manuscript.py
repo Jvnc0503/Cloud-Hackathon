@@ -2,7 +2,7 @@ import os
 import re
 import json
 import urllib.parse
-
+import math
 import boto3
 
 try:
@@ -300,9 +300,19 @@ def _fallback_dois(md):
 
 
 def _registrar_total(manuscript_id, tema, total):
-    estado = "COMPLETADO" if total == 0 else "PROCESANDO"
-    expr = "SET tema = :t, totalRefs = :n, refsProcesadas = :z, refsRetractadas = :z, #estado = :e"
-    vals = {":t": tema, ":n": total, ":z": 0, ":e": estado}
+    estado = "COMPLETED" if total == 0 else "PROCESSING"
+    total_batches = math.ceil(total / 10) if total > 0 else 0
+    expr = (
+        "SET tema = :t, totalRefs = :n, totalBatches = :tb, "
+        "refsProcesadas = :z, refsRetractadas = :z, #estado = :e"
+    )
+    vals = {
+        ":t": tema, 
+        ":n": total, 
+        ":tb": total_batches, 
+        ":z": 0, 
+        ":e": estado
+    }
 
     if total == 0:
         expr += ", indiceIntegridad = :i"
