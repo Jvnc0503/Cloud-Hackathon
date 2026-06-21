@@ -2,8 +2,6 @@
 
 "Centinela" es una plataforma Serverless diseñada para automatizar la verificación masiva de referencias bibliográficas, detectando "citas zombis" (artículos retractados que siguen siendo citados como válidos) y analizando el contexto de las citas mediante Inteligencia Artificial.
 
-Repositorio del frontend: https://github.com/fgonzz06/Cloud-Hackathon-frontend
-
 ## 1. Visión y Problemática
 La ciencia actual enfrenta una crisis de reproducibilidad. La citación activa de artículos retractados propaga información falsa en áreas sensibles como la medicina, biotecnología e ingeniería.
 
@@ -35,7 +33,16 @@ La comunicación se rige por HTTPS/REST y JSON. Los endpoints principales son:
 
 ![Diagrama de arquitectura](DiagramaArquitectura.drawio.png)
 
-## 5. Manual de Despliegue
+## 5. Frontend
+
+- **Repositorio:** [Cloud-Hackathon-frontend](https://github.com/fgonzz06/Cloud-Hackathon-frontend)
+- **Demo (desplegada):** [Página en AWS Amplify](https://main.d2829jumb6jpsx.amplifyapp.com/)
+- **Descripción:** Interfaz para subir manuscritos y visualizar resultados del análisis de integridad.
+- **Captura de pantalla:**
+
+    ![Captura del frontend](page.png)
+
+## 6. Manual de Despliegue
 
 ### Requisitos Previos
 * Node.js (v18+)
