@@ -72,6 +72,7 @@ def lambda_handler(event, context):
             Key={"PK": f"MANUSCRIPT#{manuscript_id}", "SK": "METADATA"}
         )
         item = response.get("Item")
+        print(item)
 
         if not item:
             return {

@@ -75,6 +75,7 @@ def lambda_handler(event, context):
             KeyConditionExpression=Key("PK").eq(f"MANUSCRIPT#{manuscript_id}") & Key("SK").begins_with("REF#")
         )
         items = sorted(response.get("Items", []), key=lambda it: it.get("SK", ""))
+        print(items)
 
         results = [_to_contract(it) for it in items]
         zombie_count = sum(1 for r in results if r["isZombie"])
