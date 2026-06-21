@@ -41,9 +41,24 @@ def test_pipeline_completo(file_path):
     # 4. Consultar Resultados (GET /manuscripts/{id}/results)
     print("4. Consultando resultados...")
     res_resp = requests.get(f"{BASE_URL}/api/v1/manuscripts/{manuscript_id}/results")
-    resultados = res_resp.json()
-    print(f"   Referencias evaluadas: {resultados.get('totalEvaluated', 0)}")
-    print(f"   Citas zombi detectadas: {resultados.get('zombieCount', 0)}")
+    datos = res_resp.json()
+    
+    print(f"   Referencias evaluadas: {datos.get('totalEvaluated', 0)}")
+    print(f"   Citas zombi detectadas: {datos.get('zombieCount', 0)}")
+    
+    # Iteración sobre los resultados para mostrar el detalle
+    citas = datos.get('results', [])
+    if citas:
+        print("\n   --- Detalle de Citas ---")
+        for i, cita in enumerate(citas, 1):
+            estado = "🧟 ZOMBI" if cita.get('isZombie') else "✅ OK"
+            # Limitamos el texto a 100 caracteres para mantener la consola limpia
+            texto_corto = cita.get('citationText', 'Sin texto')[:100]
+            print(f"   {i}. [{estado}] {texto_corto}...")
+            
+            if cita.get('isZombie'):
+                contexto = cita.get('analysisContext', 'Sin contexto')
+                print(f"      Análisis: {contexto}")
     
     print("\n✅ Prueba finalizada correctamente.")
 
