@@ -2,6 +2,8 @@
 
 "Centinela" es una plataforma Serverless diseñada para automatizar la verificación masiva de referencias bibliográficas, detectando "citas zombis" (artículos retractados que siguen siendo citados como válidos) y analizando el contexto de las citas mediante Inteligencia Artificial.
 
+Repositorio del frontend: https://github.com/fgonzz06/Cloud-Hackathon-frontend
+
 ## 1. Visión y Problemática
 La ciencia actual enfrenta una crisis de reproducibilidad. La citación activa de artículos retractados propaga información falsa en áreas sensibles como la medicina, biotecnología e ingeniería.
 
